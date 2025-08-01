@@ -269,3 +269,116 @@ def perform_advanced_statistics(df):
                 st.info("選択した列がすべて数値データであり、計算可能な状態であることを確認してください。")
         else:
             st.warning("相関を計算するには、2つ以上の数値列を選択してください。")
+
+def apply_filters(df):
+    """
+    データフレームにフィルタリングオプションを適用し、フィルタリング後のDataFrameを返します。
+    """
+    st.sidebar.subheader('データフィルタリング')
+    st.sidebar.write('---')
+
+    filtered_df = df.copy() # 元のデータフレームを直接変更しないようにコピー
+
+    # フィルタリングオプションの選択
+    filter_options = st.sidebar.multiselect(
+        'フィルタリングしたい列を選択してください:',
+        df.columns.tolist()
+    )
+
+    if not filter_options:
+        st.sidebar.info("フィルタリングする列を選択してください。")
+        return filtered_df # フィルタリングする列が選択されていなければ、元のDataFrameを返す
+
+    # 各選択された列に対するフィルタリングUIとロジック
+    for col in filter_options:
+        col_type = df[col].dtype
+
+        with st.sidebar.expander(f"'{col}' でフィルタリング"):
+            if pd.api.types.is_numeric_dtype(col_type):
+                # 数値列のフィルタリング
+                min_val = float(df[col].min())
+                max_val = float(df[col].max())
+                
+                # スライダーのステップサイズを調整（整数なら1、小数なら0.1など）
+                step = 1.0
+                if df[col].apply(lambda x: isinstance(x, (int, float)) and not float(x).is_integer()).any():
+                    step = (max_val - min_val) / 100.0 # 小数を含む場合、より細かいステップ
+
+                # 最小値と最大値が同じ場合はスライダーを無効化
+                if min_val == max_val:
+                    st.write(f"この列の値はすべて {min_val} です。")
+                    selected_range = (min_val, max_val)
+                else:
+                    selected_range = st.slider(
+                        f'{col} の範囲を選択:',
+                        min_value=min_val,
+                        max_value=max_val,
+                        value=(min_val, max_val),
+                        step=step,
+                        key=f'slider_{col}' # ユニークなキーを設定
+                    )
+                filtered_df = filtered_df[
+                    (filtered_df[col] >= selected_range[0]) &
+                    (filtered_df[col] <= selected_range[1])
+                ]
+
+            elif pd.api.types.is_object_dtype(col_type) or pd.api.types.is_string_dtype(col_type) or pd.api.types.is_categorical_dtype(col_type):
+                # カテゴリ列のフィルタリング
+                unique_values = df[col].unique().tolist()
+                selected_values = st.multiselect(
+                    f'{col} の値を選択:',
+                    unique_values,
+                    default=unique_values,
+                    key=f'multiselect_{col}' # ユニークなキーを設定
+                )
+                if selected_values:
+                    filtered_df = filtered_df[filtered_df[col].isin(selected_values)]
+                else:
+                    st.warning(f"'{col}' の値が選択されていません。この列のデータはすべて除外されます。")
+                    filtered_df = pd.DataFrame(columns=df.columns) # 全て除外された場合は空のDataFrame
+
+            elif pd.api.types.is_datetime64_any_dtype(col_type):
+                # 日付列のフィルタリング
+                # 日付列をdatetime型に変換（エラーを無視して変換できないものはNaTにする）
+                df[col] = pd.to_datetime(df[col], errors='coerce')
+                
+                # 有効な日付のみを対象にする
+                valid_dates = df[col].dropna()
+                if not valid_dates.empty:
+                    min_date = valid_dates.min().date()
+                    max_date = valid_dates.max().date()
+
+                    if min_date == max_date:
+                        st.write(f"この列の日付はすべて {min_date} です。")
+                        start_date = min_date
+                        end_date = max_date
+                    else:
+                        date_range = st.date_input(
+                            f'{col} の日付範囲を選択:',
+                            value=(min_date, max_date),
+                            min_value=min_date,
+                            max_value=max_date,
+                            key=f'date_input_{col}' # ユニークなキーを設定
+                        )
+                        if len(date_range) == 2:
+                            start_date = date_range[0]
+                            end_date = date_range[1]
+                        elif len(date_range) == 1: # 片方だけ選択された場合
+                            start_date = date_range[0]
+                            end_date = max_date # デフォルトで最大値
+                        else: # 何も選択されていない場合
+                            start_date = min_date
+                            end_date = max_date
+
+                    # 日付でフィルタリング
+                    filtered_df = filtered_df[
+                        (filtered_df[col].dt.date >= start_date) &
+                        (filtered_df[col].dt.date <= end_date)
+                    ]
+                else:
+                    st.warning(f"'{col}' 列に有効な日付データが見つかりません。")
+
+            else:
+                st.info(f"'{col}' 列のデータ型 ({col_type}) は現在サポートされていません。")
+
+    return filtered_df
