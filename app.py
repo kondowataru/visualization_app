@@ -8,7 +8,8 @@ from components.graph_plotter import (
     plot_bar_chart,
     plot_stacked_bar_chart,
     plot_scatter_plot,
-    plot_heatmap
+    plot_heatmap,
+    PLOTLY_TEMPLATES # 新しくインポート
 )
 from components.data_processor import (
     load_and_combine_csv,
@@ -56,17 +57,38 @@ if uploaded_files: # 少なくとも1つファイルがアップロードされ�
 
             columns = df.columns.tolist()
 
+            # --- ここからグラフカスタマイズオプションの追加 ---
+            st.sidebar.subheader('グラフカスタマイズオプション')
+            custom_title = st.sidebar.text_input('グラフタイトル (任意):', '')
+            custom_x_label = st.sidebar.text_input('X軸ラベル (任意):', '')
+            custom_y_label = st.sidebar.text_input('Y軸ラベル (任意):', '')
+
+            # components/graph_plotter.py から PLOTLY_TEMPLATES をインポートして使用
+            selected_color_theme = st.sidebar.selectbox(
+                'カラーテーマを選択:',
+                PLOTLY_TEMPLATES,
+                index=PLOTLY_TEMPLATES.index("plotly") # デフォルトは'plotly'
+            )
+            # --- グラフカスタマイズオプションの追加ここまで ---
+
             if graph_type in ['折れ線グラフ', '棒グラフ', '積み立てグラフ']:
                 x_axis_col = st.selectbox('X軸に使う列を選択してください:', columns, index=0)
                 y_axis_cols = st.multiselect('Y軸に使う列を1つ以上選択してください:', columns)
 
                 if x_axis_col and y_axis_cols:
+                    # plot_xxx_chart 関数にカスタマイズオプションを渡す
                     if graph_type == '折れ線グラフ':
-                        plot_line_chart(df, x_axis_col, y_axis_cols)
+                        plot_line_chart(df, x_axis_col, y_axis_cols,
+                                        title=custom_title, x_label=custom_x_label,
+                                        y_label=custom_y_label, color_theme=selected_color_theme)
                     elif graph_type == '棒グラフ':
-                        plot_bar_chart(df, x_axis_col, y_axis_cols)
+                        plot_bar_chart(df, x_axis_col, y_axis_cols,
+                                       title=custom_title, x_label=custom_x_label,
+                                       y_label=custom_y_label, color_theme=selected_color_theme)
                     elif graph_type == '積み立てグラフ':
-                        plot_stacked_bar_chart(df, x_axis_col, y_axis_cols)
+                        plot_stacked_bar_chart(df, x_axis_col, y_axis_cols,
+                                               title=custom_title, x_label=custom_x_label,
+                                               y_label=custom_y_label, color_theme=selected_color_theme)
                 else:
                     st.warning("X軸とY軸の列を選択してください。")
 
@@ -76,7 +98,10 @@ if uploaded_files: # 少なくとも1つファイルがアップロードされ�
                 color_col = st.selectbox('色分けに使う列を選択してください (任意):', [''] + columns)
 
                 if x_axis_col and y_axis_col:
-                    plot_scatter_plot(df, x_axis_col, y_axis_col, color_col if color_col else None)
+                    # plot_scatter_plot 関数にカスタマイズオプションを渡す
+                    plot_scatter_plot(df, x_axis_col, y_axis_col, color_col if color_col else None,
+                                      title=custom_title, x_label=custom_x_label,
+                                      y_label=custom_y_label, color_theme=selected_color_theme)
                 else:
                     st.warning("X軸とY軸の列を選択してください。")
 
@@ -86,12 +111,15 @@ if uploaded_files: # 少なくとも1つファイルがアップロードされ�
                 z_axis_col = st.selectbox('値を表すZ軸に使う列を選択してください (任意):', [''] + columns)
 
                 if x_axis_col and y_axis_col:
-                    plot_heatmap(df, x_axis_col, y_axis_col, z_axis_col if z_axis_col else None)
+                    # plot_heatmap 関数にカスタマイズオプションを渡す
+                    plot_heatmap(df, x_axis_col, y_axis_col, z_axis_col if z_axis_col else None,
+                                 title=custom_title, x_label=custom_x_label,
+                                 y_label=custom_y_label, color_theme=selected_color_theme)
                 else:
                     st.warning("X軸とY軸の列を選択してください。")
 
-            else:
-                st.info('グラフの種類を選択すると、設定オプションが表示されます。')
+        else: # graph_type が '選択してください' の場合
+            st.info('グラフの種類を選択すると、設定オプションが表示されます。')
 
         # --- データ分析セクション ---
         st.subheader('データ分析')
