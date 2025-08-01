@@ -14,7 +14,8 @@ from components.graph_plotter import (
 from components.data_processor import (
     load_and_combine_csv,
     calculate_and_plot_average,
-    aggregate_and_plot_time_series
+    aggregate_and_plot_time_series,
+    perform_advanced_statistics # この行を追加
 )
 
 st.set_page_config(layout="wide")
@@ -126,16 +127,19 @@ if uploaded_files: # 少なくとも1つファイルがアップロードされ�
         st.write('---')
 
         analysis_type = st.selectbox(
-            '実行する分析を選択してください:',
-            ('選択してください', '選択した列の平均値', '時系列データ集計と可視化')
-        )
+                    '実行する分析を選択してください:',
+                    ('選択してください', '選択した列の平均値', '時系列データ集計と可視化', '高度な統計分析') # オプションを追加
+                )
 
         if analysis_type == '選択した列の平均値':
-            # data_processorモジュールから平均値計算関数を呼び出す
+                    # data_processorモジュールから平均値計算関数を呼び出す
             calculate_and_plot_average(df)
         elif analysis_type == '時系列データ集計と可視化':
-            # data_processorモジュールから時系列集計関数を呼び出す
+                    # data_processorモジュールから時系列集計関数を呼び出す
             aggregate_and_plot_time_series(df)
+        elif analysis_type == '高度な統計分析': # 新しい分析タイプを追加
+            from components.data_processor import perform_advanced_statistics # 新しい関数をインポート
+            perform_advanced_statistics(df)
         else:
             st.info('分析の種類を選択すると、オプションが表示されます。')
 
