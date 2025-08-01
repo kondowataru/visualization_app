@@ -33,14 +33,11 @@
 
 まず、このリポジトリをローカル環境にクローンします。
 
-```bash
 git clone [https://github.com/あなたのGitHubユーザー名/あなたのリポジトリ名.git](https://github.com/あなたのGitHubユーザー名/あなたのリポジトリ名.git)
 cd あなたのリポジトリ名
 
 2. 仮想環境の作成とアクティベート (推奨)
 プロジェクトの依存関係を管理するために、仮想環境を作成することをお勧めします。
-
-Bash
 
 python -m venv venv
 # Windowsの場合
@@ -58,13 +55,9 @@ plotly==5.22.0   # 使用しているPlotlyのバージョンに合わせる
 numpy==1.26.4    # 使用しているNumpyのバージョンに合わせる
 その後、以下のコマンドでインストールします。
 
-Bash
-
 pip install -r requirements.txt
 アプリケーションの実行方法
 上記のセットアップが完了したら、以下のコマンドでアプリケーションを起動できます。
-
-Bash
 
 streamlit run app.py
 コマンド実行後、ブラウザでアプリケーションが開きます。もし自動で開かない場合は、ターミナルに表示されるURL（例: http://localhost:8501）にアクセスしてください。
