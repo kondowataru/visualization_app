@@ -2,6 +2,7 @@
 
 import pandas as pd
 import streamlit as st # Streamlitのエラー表示に使うためインポート
+import plotly.express as px # 新しくインポート。ヒートマップ用
 
 def load_and_combine_csv(uploaded_files):
     """
@@ -56,7 +57,7 @@ def calculate_and_plot_average(df):
                 st.subheader('計算結果（平均値）')
                 st.dataframe(average_values.reset_index().rename(columns={'index': '列名', 0: '平均値'}))
 
-                import plotly.express as px # 関数内でインポート
+                # plotly.express はファイルの先頭でインポート済
                 st.subheader('平均値の棒グラフ')
                 fig_avg_bar = px.bar(
                     average_values.reset_index(),
@@ -65,6 +66,7 @@ def calculate_and_plot_average(df):
                     title='選択された列の平均値',
                     labels={'index': '列名', 0: '平均値'}
                 )
+                fig_avg_bar.update_layout(title_x=0.5) # タイトル中央寄せ
                 st.plotly_chart(fig_avg_bar, use_container_width=True)
 
             except Exception as e:
@@ -82,8 +84,8 @@ def aggregate_and_plot_time_series(df):
     columns = df.columns.tolist()
 
     time_col = st.selectbox('タイムスタンプ列を選択してください:', columns)
-    numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
-    value_col = st.selectbox('値を計算したい数値列を選択してください:', numeric_cols)
+    numeric_columns = df.select_dtypes(include=['number']).columns.tolist() # Numeric columns here
+    value_col = st.selectbox('値を計算したい数値列を選択してください:', numeric_columns)
 
     if not time_col or not value_col:
         st.warning("タイムスタンプ列と数値データ列を選択してください。")
@@ -112,7 +114,7 @@ def aggregate_and_plot_time_series(df):
             plot_title = ""
             x_label = ""
             y_label = f'{value_col}の平均'
-            import plotly.express as px # 関数内でインポート
+            # plotly.express はファイルの先頭でインポート済
 
             if aggregation_granularity == '日ごとの時間帯別平均':
                 df_copy['hour'] = df_copy[time_col].dt.hour
@@ -139,10 +141,11 @@ def aggregate_and_plot_time_series(df):
                     title=f'日ごとの時間帯別平均 {value_col}',
                     labels={'hour': '時間帯 (h)', 'Date': '日付', 'Average_Value': y_label}
                 )
+                fig.update_layout(title_x=0.5) # タイトル中央寄せ
                 st.plotly_chart(fig, use_container_width=True)
                 st.info("ヒートマップは、日ごとの時間帯別のパターンを視覚的に把握するのに適しています。")
 
-            else:
+            else: # その他の粒度
                 if aggregation_granularity == '時間帯別平均 (全期間)':
                     df_copy['period'] = df_copy[time_col].dt.hour
                     plot_title = f'全期間における時間帯別平均 {value_col}'
@@ -180,7 +183,7 @@ def aggregate_and_plot_time_series(df):
                         title=plot_title,
                         labels={'Period': x_label, 'Average_Value': y_label}
                     )
-                else:
+                else: # 曜日別平均などは棒グラフの方が自然
                     fig = px.bar(
                         aggregated_df,
                         x='Period',
@@ -188,6 +191,7 @@ def aggregate_and_plot_time_series(df):
                         title=plot_title,
                         labels={'Period': x_label, 'Average_Value': y_label}
                     )
+                fig.update_layout(title_x=0.5) # タイトル中央寄せ
                 st.plotly_chart(fig, use_container_width=True)
 
         else:
@@ -198,3 +202,70 @@ def aggregate_and_plot_time_series(df):
     except Exception as e:
         st.error(f"分析中にエラーが発生しました: {e}")
         st.info("選択したタイムスタンプ列が正しい形式か、数値データ列が数値型か確認してください。")
+
+def perform_advanced_statistics(df):
+    """
+    データフレームに対して高度な統計分析（記述統計量、相関行列）を実行し、表示します。
+    """
+    st.write('選択した数値列の基本的な統計量と相関行列を計算し表示します。')
+
+    numeric_columns = df.select_dtypes(include=['number']).columns.tolist()
+
+    if not numeric_columns:
+        st.warning("データフレームに数値型の列が見つかりません。統計分析を実行できません。")
+        return
+
+    st.subheader('1. 基本的な記述統計量')
+    st.info("選択した数値列の合計、平均、標準偏差、最小値、最大値などを表示します。")
+
+    cols_for_describe = st.multiselect(
+        '統計量を表示したい数値列を選択してください:',
+        numeric_columns,
+        default=numeric_columns # デフォルトで全ての数値列を選択
+    )
+
+    if cols_for_describe:
+        try:
+            # df.describe()で記述統計量を計算
+            descriptive_stats = df[cols_for_describe].describe()
+            st.dataframe(descriptive_stats)
+        except Exception as e:
+            st.error(f"記述統計量の計算中にエラーが発生しました: {e}")
+            st.info("選択した列がすべて数値データであることを確認してください。")
+    else:
+        st.warning("統計量を表示したい列を1つ以上選択してください。")
+
+    st.subheader('2. 相関行列のヒートマップ')
+    st.info("選択した複数の数値列間の相関関係をヒートマップで可視化します。値が1に近いほど強い正の相関、-1に近いほど強い負の相関があります。")
+
+    cols_for_correlation = st.multiselect(
+        '相関を計算したい数値列を2つ以上選択してください:',
+        numeric_columns,
+        default=numeric_columns if len(numeric_columns) >= 2 else [] # 数値列が2つ以上あればデフォルトで選択
+    )
+
+    if st.button('相関行列を計算しプロット'):
+        if len(cols_for_correlation) >= 2:
+            try:
+                # 相関行列を計算
+                correlation_matrix = df[cols_for_correlation].corr()
+
+                st.subheader('相関行列（表）')
+                st.dataframe(correlation_matrix)
+
+                # 相関行列をヒートマップで可視化
+                fig_corr_heatmap = px.imshow(
+                    correlation_matrix,
+                    text_auto=True, # セルに値を自動表示
+                    aspect="auto", # アスペクト比を自動調整
+                    title='選択された列間の相関行列',
+                    color_continuous_scale=px.colors.sequential.Viridis # カラーバーのスケール
+                )
+                fig_corr_heatmap.update_layout(title_x=0.5) # タイトル中央寄せ
+                st.plotly_chart(fig_corr_heatmap, use_container_width=True)
+
+            except Exception as e:
+                st.error(f"相関行列の計算またはプロット中にエラーが発生しました: {e}")
+                st.info("選択した列がすべて数値データであり、計算可能な状態であることを確認してください。")
+        else:
+            st.warning("相関を計算するには、2つ以上の数値列を選択してください。")
